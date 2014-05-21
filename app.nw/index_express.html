@@ -1,0 +1,348 @@
+<html lang="en">
+<head>
+  <title>Let's Play!</title>
+  <meta charset="utf-8" />
+  <meta name = "viewport" content = "initial-scale = 1, user-scalable = no">
+  <style>
+  	html,body{
+  		height: 100%;
+	  	background-color: black;
+	  	margin: 0;
+	  	color: black;
+  	}
+  	#left{
+		display:none;
+  		float: left;
+  		width: 50%;
+  		height: 100%;
+	  	background-color: black;
+	  	overflow: hidden;
+	  	
+  	}
+  	#right{
+		display:none;
+  		float: right;
+  		width: 50%;
+  		height: 100%;
+	  	background-color: black;
+	  	overflow: hidden;
+	  	
+  	}
+  	.white{
+	  	background-color: white;
+  	}
+  	.black{
+	  	background-color: black;
+  	}
+  	.gray{
+	  	background-color: gray;
+  	}
+  	#analog_circle,#analog_inner_circle,#analog{
+	  	position: absolute;
+  	}
+  	#redButton{
+	  	background-color: red;
+	  	-webkit-transform-origin: 0% 0%;
+	  	-webkit-transform: rotate(225deg);
+  	}
+  	#greenButton{
+	  	background-color: green;
+	  	-webkit-transform-origin: 0% 0%;
+	  	-webkit-transform: rotate(315deg);
+  	}
+  	#blueButton{
+	  	background-color: blue;
+	  	-webkit-transform-origin: 0% 0%;
+	  	-webkit-transform: rotate(45deg);
+
+  	}
+	#container{
+		width: 100%;
+		height: 100%;
+		display: none;
+	}
+	#startText{
+		color: #444;
+		position:relative;
+		-webkit-transform:rotate(90deg);
+		font: Arial;
+	}
+  	.press{
+  		position: relative;
+  		/* -webkit-transform: rotate(45deg) */
+  	}
+	#loader{
+		color: white;
+	}
+	
+  </style>
+</head>
+
+<body>
+<div id="loader">
+Loading...
+</div>
+<div id="left" title="analog" class="pushable">
+	<div id="analog_circle" title="analog" class="white"></div>
+	<div id="analog_inner_circle" title="analog" class="black"></div>
+	<div id="analog" title="analog" class="gray"></div>
+</div>
+
+<div id="right" >
+	<div id="redButton" class="press pushable"></div>
+	<div id="greenButton" class="press pushable"></div>
+	<div id="blueButton" class="press pushable"></div>
+	<div id="startContainer" title="start" class="press gray pushable">
+		<div id="Start" title="start" class="press white">
+		<div title="start" id="startText">▲</div>
+		</div>
+	</div>
+</div>
+<script src="static/bower_components/jquery/dist/jquery.min.js"></script>
+<script src="static/bower_components/jquery-hammerjs/jquery.hammer-full.min.js"></script>
+<script src="/socket.io/socket.io.js"></script>
+<script>
+	var center,center2,cx,dx,dy,ddx,ddy,pushed,w,h,diameter,analogX,analogY,socket;
+	$(document).ready(function(){
+		pushed = [];
+    	socket = io.connect('http://{{{host}}}');
+    	navigator.vibrate = navigator.vibrate || navigator.webkitVibrate || navigator.mozVibrate || navigator.msVibrate;
+	    socket.on('vibrate',function(){
+		  	if(navigator.vibrate){
+			  	navigator.vibrate(100);
+		  	}  
+	    });
+	    var hb = true;
+	    var setT = function(){
+		    if(hb){
+		    	hb = false;
+			    setTimeout(setT, {{{timeout}}});
+		    }else{
+			    socket.disconnect();
+			    $("#left").css('display','none');
+				$("#right").css('display','none');
+			  	$("#loader").css('display','block');
+			    $("#loader").html("Disconnected :( <br />Try to connect again by refreshing the page...");
+		    }
+	    }
+	    setT();
+	    socket.on('hb',function(){
+	    	hb = true;
+	    	socket.emit('hb');
+	    	
+	    });
+
+	    socket.on('id',function(ob){
+		  	if(ob.player_id){
+				$("#left").css('display','block');
+			  	$("#right").css('display','block');
+			  	$("#loader").css('display','none');
+		  	}else{
+			  	$("#loader").html("Too many players :(");
+		  	}
+	    });
+		socket.emit('hello');
+	});
+	function resizedraw(){
+		return draw(false);
+	}
+	function draw(init) {
+		w = $("#left").width();
+		h = $("#left").height();
+		diameter = w < h ? w/2 : h/2;
+		if(init || (center == null && center2 == null)){
+			analogX = w/2;
+			analogY = h/2;
+			cx = 0;
+			dx = 0;
+			dy = 0;
+			ddx = 0;
+			ddy = 0;
+			center = null;
+			center2 = null;
+		}
+		$("#analog_circle").width(diameter);
+		$("#analog_circle").height(diameter);
+		$("#analog_circle").css("border-radius",diameter + "px");
+		$("#analog_circle").css("top",analogY-diameter/2);
+		$("#analog_circle").css("left",analogX-diameter/2);
+		
+		$("#analog_inner_circle").width(diameter-10);
+		$("#analog_inner_circle").height(diameter-10);
+		$("#analog_inner_circle").css("border-radius",diameter + "px");
+		$("#analog_inner_circle").css("top",analogY+5-diameter/2);
+		$("#analog_inner_circle").css("left",analogX+5-diameter/2);
+		
+		$("#analog").width(diameter/2);
+		$("#analog").height(diameter/2);
+		$("#analog").css("border-radius",diameter + "px");
+		$("#analog").css("top",(analogY-diameter/4)+ddy);
+		$("#analog").css("left",(analogX-diameter/4)+ddx);
+		
+
+		
+		var sq_side = (h*Math.sqrt(2)/3);
+		
+		
+		$(".press").width(sq_side);
+		$(".press").height(sq_side);
+	
+		
+		$("#redButton").css("top",h/2);
+		$("#greenButton").css("top",(h/2)-sq_side);
+		$("#blueButton").css("top",(h/2)-2*sq_side);
+		$(".press").css("left",w/2);
+		
+		$("#startContainer").width(diameter/2);
+		$("#startContainer").height(diameter/2);
+		$("#Start").width(diameter/2);
+		$("#Start").height(diameter/2);
+		$("#startContainer").css("border-radius",diameter + "px");
+		$("#Start").css("border-radius",diameter + "px");
+		$("#startContainer").css("top",((h/2)-3*sq_side)-(diameter/4));
+		$("#Start").css("top",0);
+		$("#Start").css("left",(w/4+(diameter/4))+cx);
+		$("#Start").css("font-size",w/4+(diameter/4));
+		$("#startContainer").css("left",0);
+		$("#startContainer").css("padding-right",w/4+(diameter/4));
+		$("#startText").css("font-size",diameter/2);
+		if(navigator.userAgent.toLowerCase().indexOf('iphone;') > -1){
+			$("#startText").css("top",-diameter/25);
+			$("#startText").css("left",diameter/25);
+		}else if(navigator.userAgent.toLowerCase().indexOf('windows nt') > -1){
+			$("#startText").css("top",-diameter/20);
+			$("#startText").css("left",diameter/20);
+		}else{
+			$("#startText").css("top",-diameter/11);
+			$("#startText").css("left",diameter/11);
+		}
+		
+	}
+	$(".pushable").hammer({
+	    preventDefault: true,
+	    gesture: true
+	}).on("touch",function(ev){
+		if(ev.gesture.target.title == 'analog'){
+			for(var touch in ev.gesture.touches){
+				if(ev.gesture.touches[touch].target.title == 'analog'){
+					center = {pageX: ev.gesture.touches[touch].pageX, pageY: ev.gesture.touches[touch].pageY};
+					break;
+				}
+			}
+			dx = 0;
+			dy = 0;
+			analogX = center.pageX < diameter/2 ? diameter/2 : (center.pageX > (w - diameter/2) ?  w- diameter/2 : center.pageX);
+			analogY = center.pageY < diameter/2 ? diameter/2 : (center.pageY > (h - diameter/2) ?  h- diameter/2 : center.pageY);
+			socket.emit('axis_start');
+			draw(false);
+		}else if(ev.gesture.target.title == 'start'){
+			for(var touch in ev.gesture.touches){
+				if(ev.gesture.touches[touch].target.title == 'start'){
+					center2 = {pageX: ev.gesture.touches[touch].pageX, pageY: ev.gesture.touches[touch].pageY};
+					break;
+				}
+				cx = 0;
+				draw(false);
+			}
+		
+		}else{
+			socket.emit('press', { button: ev.gesture.target.id });
+		}
+	}).on("release",function(ev){
+		if(ev.gesture.target.title == 'analog'){
+			draw(true);
+			socket.emit('axis', { X: 0x4000, Y: 0x4000 });
+		}else if(ev.gesture.target.title == 'start'){
+			if(cx == -(w/4+(diameter/4))){
+				socket.emit('press', { button: "Start" });
+				setTimeout(function(){
+					socket.emit('release', { button: "Start" });
+				},500);
+			}
+			cx = 0;
+			center2=0;
+			draw(false);
+		}else{
+			socket.emit('release', { button: ev.gesture.target.id });
+		}
+	}).on("gesture",function(ev){
+		if(ev.gesture.eventType == "move" && ev.gesture.target.title == 'analog' && center){
+		  var curr;
+		  for(var touch in ev.gesture.touches){
+				if(ev.gesture.touches[touch].target.title == 'analog'){
+					curr = ev.gesture.touches[touch];
+					break;
+				}
+			}
+			
+		  var deltaX = curr.pageX - center.pageX;
+		  var deltaY = curr.pageY - center.pageY;
+		 
+		  
+		  dx = deltaX < -diameter/2 ? -diameter/2 : (deltaX > diameter/2 ? diameter/2 : deltaX);
+      	  dy = deltaY < -diameter/2 ? -diameter/2 : (deltaY > diameter/2 ? diameter/2 : deltaY);
+		  
+		  var dist = Math.sqrt(dx*dx + dy*dy);
+      	  
+      	  if(dist <= diameter/2)
+      	  {
+	      	  ddx = dx;
+	      	  ddy = dy;
+      	  }else{
+	      	  ddx = diameter/2 * (dx/dist);
+	      	  ddy = diameter/2 * (dy/dist);
+      	  }
+		  socket.emit('axis', { X: ((dx + (diameter/2))/(diameter/2))*0x4000, Y: ((dy + (diameter/2))/(diameter/2))*0x4000 });
+      	  draw(false);
+		
+		}else if(ev.gesture.eventType == "move" && ev.gesture.target.title == 'start' && center2){
+			var curr;
+			for(var touch in ev.gesture.touches){
+				if(ev.gesture.touches[touch].target.title == 'start'){
+					curr = ev.gesture.touches[touch];
+					break;
+				}
+			}
+			var deltaX = curr.pageX - center2.pageX;
+			cx = deltaX > 0 ? 0 : ((deltaX < -(w/4+(diameter/4))) ? -(w/4+(diameter/4)) : deltaX);
+			draw(false);
+		}
+	});
+	/*
+	  $("#left").hammer({
+          preventDefault: true,
+          gesture: true
+      }).on("touch",function(ev){
+		  console.log(ev);
+      	  var center = ev.gesture['center'];
+      	  dx = 0;
+      	  dy = 0;
+      	  analogX = center.pageX < diameter/2 ? diameter/2 : (center.pageX > (w - diameter/2) ?  w- diameter/2 : center.pageX);
+      	  analogY = center.pageY < diameter/2 ? diameter/2 : (center.pageY > (h - diameter/2) ?  h- diameter/2 : center.pageY);
+		  socket.emit('axis_start');
+	      draw(false);
+      }).on("release",function(ev){
+	      draw(true);
+		  socket.emit('axis', { X: 0x4000, Y: 0x4000 });
+      }).on("drag",function(ev){
+      	  dx = ev.gesture['deltaX'] < -diameter/2 ? -diameter/2 : (ev.gesture['deltaX'] > diameter/2 ? diameter/2 : ev.gesture['deltaX']);
+      	  dy = ev.gesture['deltaY'] < -diameter/2 ? -diameter/2 : (ev.gesture['deltaY'] > diameter/2 ? diameter/2 : ev.gesture['deltaY']);
+      	  
+      	  if(ev.gesture['distance'] <= diameter/2)
+      	  {
+	      	  ddx = dx;
+	      	  ddy = dy;
+      	  }else{
+	      	  ddx = diameter/2 * Math.cos(ev.gesture['angle']*Math.PI/180);
+	      	  ddy = diameter/2 * Math.sin(ev.gesture['angle']*Math.PI/180);
+      	  }
+		  socket.emit('axis', { X: ((dx + (diameter/2))/(diameter/2))*0x4000, Y: ((dy + (diameter/2))/(diameter/2))*0x4000 });
+      	  draw(false);
+      });
+	*/
+	$(window).on("orientationchange",resizedraw);
+	$(window).resize(resizedraw);
+	draw(true);
+</script>
+</body>
+</html>
